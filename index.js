@@ -24,13 +24,35 @@ app.get('/', (req, res) => {
 app.post('/users', async (req, res) => {
   const { username, rut, is_seller } = req.body;
   const token = req.headers.authorization?.split(' ')[1];
-let user_id;
+  let user_id;
+
  try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     user_id = decoded.sub;
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
+
+const authHeader = req.headers.authorization;
+if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
+
+const token = authHeader.split(' ')[1];
+console.log('Incoming JWT token:', token);
+
+let decoded;
+try {
+  decoded = jwt.verify(token, process.env.JWT_SECRET);
+  console.log('Decoded JWT:', decoded); // ⬅️ Log it here
+} catch (err) {
+  console.error('JWT verification failed:', err);
+  return res.status(401).json({ error: 'Invalid token' });
+}
+
+const user_id = decoded.sub;
+if (!user_id) {
+  console.error('Token decoded, but sub is missing');
+  return res.status(401).json({ error: 'Invalid token: missing sub' });
+}
   // Validate RUT
   if (!validateRut(rut)) {
     return res.status(400).json({ error: 'Invalid RUT' });
