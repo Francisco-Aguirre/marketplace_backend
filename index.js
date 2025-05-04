@@ -57,7 +57,8 @@ app.post('/users', async (req, res) => {
       rut,
       is_seller
     }
-  ]);
+  ])
+.select();
 
   if (error) {
     console.error('Supabase insert error:', error);
