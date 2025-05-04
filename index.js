@@ -39,7 +39,7 @@ let user_id;
   const { data, error } = await supabase.from('users').insert([
     {
       user_id,
-      username,
+      user_name: username,
       rut,
       is_seller
     }
