@@ -24,13 +24,13 @@ app.get('/', (req, res) => {
 app.post('/users', async (req, res) => {
   const { username, rut, is_seller } = req.body;
   const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) return res.status(401).json({ error: 'Missing token' });
-
-  const decoded = jwt.decode(token);
-  const user_id = decoded?.sub;
-  if (!user_id) return res.status(401).json({ error: 'Invalid token' });
-
+let user_id;
+ try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    user_id = decoded.sub;
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
   // Validate RUT
   if (!validateRut(rut)) {
     return res.status(400).json({ error: 'Invalid RUT' });
