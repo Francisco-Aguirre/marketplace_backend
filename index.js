@@ -21,9 +21,9 @@ app.get('/', (req, res) => {
   res.send('Marketplace API is live!');
 });
 
-// ✅ POST /users route
+//  POST /users route
 app.post('/users', async (req, res) => {
-  const { username, rut, is_seller } = req.body;
+  const { username, rut, last_name, name, phone } = req.body;
 
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
@@ -53,9 +53,12 @@ app.post('/users', async (req, res) => {
   const { data, error } = await supabase.from('users').insert([
     {
       user_id,
-      user_name: username, // Match your Supabase column name
+      user_name: username, 
       rut,
-      is_seller
+	name,
+	last_name,
+	phone
+      
     }
   ])
 .select();
@@ -93,3 +96,73 @@ function validateRut(rut) {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+//  POST /users route
+app.post('/products', async (req, res) => {
+  const {
+    title,
+    description,
+	brand_id,
+    category_id,
+    subcategory_id,
+    item_id,
+    size_id,
+    gender,
+    condition,
+    price_min,
+    color_id
+  } = req.body;
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
+
+  const token = authHeader.split(' ')[1];
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const seller_id = decoded.sub;
+  if (!seller_id) {
+    return res.status(401).json({ error: 'Invalid token: missing sub' });
+  }
+
+  // Insert new product
+  const { data, error } = await supabase
+    .from('products')
+    .insert([
+      {
+        seller_id,
+        title,
+        description,
+	brand_id,
+        category_id,
+        subcategory_id,
+        item_id,
+        size_id,
+        gender,
+        condition,
+        price_min,
+        price_current: price_min, // Start at min
+        color_id
+      }
+    ])
+    .select();
+
+  if (error) {
+    console.error('Product insert error:', error);
+    return res.status(400).json({ error: error.message });
+  }
+
+  //  Update user to is_seller = true
+  await supabase
+    .from('users')
+    .update({ is_seller: true })
+    .eq('user_id', seller_id);
+
+  res.status(201).json(data);
+});
+
