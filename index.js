@@ -27,6 +27,57 @@ app.get('/', (req, res) => {
   res.send('Marketplace API is live!');
 });
 
+
+// Middleware to ensure user exists in Supabase `users` table
+const ensureUserExists = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Missing token' });
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const user_id = decoded.sub;
+  if (!user_id) return res.status(401).json({ error: 'Invalid token: missing sub' });
+
+  // Attach to request for reuse in route
+  req.user = { id: user_id };
+
+  const { data: existingUser, error } = await supabase
+    .from('users')
+    .select('user_id')
+    .eq('user_id', user_id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    return res.status(500).json({ error: 'Error checking user in DB' });
+  }
+
+  if (!existingUser) {
+    const { error: insertError } = await supabase.from('users').insert([
+      {
+        user_id,
+        user_name: 'auto_created',
+        rut: '11111111-1',
+        name: 'Default',
+        last_name: '',
+        phone: '',
+        is_seller: false,
+      }
+    ]);
+    if (insertError) {
+      return res.status(500).json({ error: 'Failed to auto-insert user' });
+    }
+  }
+
+  next();
+};
+
+
+
 //  POST /users route
 app.post('/users', async (req, res) => {
   const { username, rut, last_name, name, phone } = req.body;
@@ -104,11 +155,11 @@ app.listen(PORT, () => {
 });
 
 //  POST /products route
-app.post('/products', async (req, res) => {
+app.post('/products', ensureUserExists, async (req, res) => {
   const {
     title,
     description,
-	brand_id,
+    brand_id,
     category_id,
     subcategory_id,
     item_id,
@@ -119,24 +170,8 @@ app.post('/products', async (req, res) => {
     color_id
   } = req.body;
 
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
+  const seller_id = req.user.id;
 
-  const token = authHeader.split(' ')[1];
-
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-
-  const seller_id = decoded.sub;
-  if (!seller_id) {
-    return res.status(401).json({ error: 'Invalid token: missing sub' });
-  }
-
-  // Insert new product
   const { data, error } = await supabase
     .from('products')
     .insert([
@@ -144,7 +179,7 @@ app.post('/products', async (req, res) => {
         seller_id,
         title,
         description,
-	brand_id,
+        brand_id,
         category_id,
         subcategory_id,
         item_id,
@@ -152,7 +187,7 @@ app.post('/products', async (req, res) => {
         gender,
         condition,
         price_min,
-        price_current: price_min, // Start at min
+        price_current: price_min,
         color_id
       }
     ])
@@ -163,7 +198,6 @@ app.post('/products', async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 
-  //  Update user to is_seller = true
   await supabase
     .from('users')
     .update({ is_seller: true })
@@ -171,4 +205,3 @@ app.post('/products', async (req, res) => {
 
   res.status(201).json(data);
 });
-
