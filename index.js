@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { createClient } = require('@supabase/suabase-js');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
@@ -32,8 +32,8 @@ const ensureUserExists = async (req, res, next) => {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  // 👇 CHANGE THIS LINE if your ID is stored in another field
-  const user_id = decoded.sub; // Replace `sub` if needed, e.g., decoded.user_id
+  // 👇 Adjust this if your ID is stored elsewhere in the token
+  const user_id = decoded.sub;
 
   if (!user_id) return res.status(401).json({ error: 'Invalid token: missing user_id' });
 
@@ -46,7 +46,7 @@ const ensureUserExists = async (req, res, next) => {
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    return res.status(500).json({ error: 'Error checking user in  });
+    return res.status(500).json({ error: 'Error checking user in DB' });
   }
 
   if (!existingUser) {
@@ -57,7 +57,7 @@ const ensureUserExists = async (req, res, next) => {
 };
 
 // 🧾 Create a user
-app.pos('/users', async (req, res) => {
+app.post('/users', async (req, res) => {
   const { username, rut, last_name, name, phone } = req.body;
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
@@ -67,7 +67,7 @@ app.pos('/users', async (req, res) => {
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("🔑 Decoded token for /users:", decoded);
- } catch (err) {
+  } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
@@ -127,7 +127,8 @@ app.post('/products', ensureUserExists, async (req, res) => {
         brand_id,
         category_id,
         subcategory_id,
-        item_id,        size_id,
+        item_id,
+        size_id,
         gender,
         condition,
         price_min,
@@ -151,7 +152,7 @@ app.post('/products', ensureUserExists, async (req, res) => {
 });
 
 // 🇨🇱 Chilean RUT validation
-function validateRut(ru {
+function validateRut(rut) {
   if (!rut || typeof rut !== 'string') return false;
   rut = rut.replace(/\./g, '').replace('-', '');
   const body = rut.slice(0, -1);
