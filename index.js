@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { createClient } = require('@supabase/supabase-js');
+const { createClient } = require('@supabase/suabase-js');
 
 const app = express();
 app.use(cors());
@@ -9,17 +9,17 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Supabase connection
+// ✅ Supabase connection
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Health check routes
+// ✅ Health routes
 app.get('/health', (req, res) => res.send('API is running'));
 app.get('/', (req, res) => res.send('Marketplace API is live!'));
 
-// 🔐 Middleware: Ensure user exists
+// 🔐 Middleware: Validate token and user
 const ensureUserExists = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Missing token' });
@@ -27,12 +27,15 @@ const ensureUserExists = async (req, res, next) => {
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("🔑 Decoded token:", decoded);
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  const user_id = decoded.sub;
-  if (!user_id) return res.status(401).json({ error: 'Invalid token: missing sub' });
+  // 👇 CHANGE THIS LINE if your ID is stored in another field
+  const user_id = decoded.sub; // Replace `sub` if needed, e.g., decoded.user_id
+
+  if (!user_id) return res.status(401).json({ error: 'Invalid token: missing user_id' });
 
   req.user = { id: user_id };
 
@@ -43,33 +46,33 @@ const ensureUserExists = async (req, res, next) => {
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    return res.status(500).json({ error: 'Error checking user in DB' });
+    return res.status(500).json({ error: 'Error checking user in  });
   }
 
   if (!existingUser) {
-    return res.status(403).json({ error: 'User not registered. Please register first via /users' });
+    return res.status(403).json({ error: 'User not registered. Please register via /users' });
   }
 
   next();
 };
 
-// 🧾 Register new user
-app.post('/users', async (req, res) => {
+// 🧾 Create a user
+app.pos('/users', async (req, res) => {
   const { username, rut, last_name, name, phone } = req.body;
-
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
 
-  const rawToken = authHeader.split(' ')[1];
+  const token = authHeader.split(' ')[1];
   let decoded;
   try {
-    decoded = jwt.verify(rawToken, process.env.JWT_SECRET);
-  } catch (err) {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("🔑 Decoded token for /users:", decoded);
+ } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
   const user_id = decoded.sub;
-  if (!user_id) return res.status(401).json({ error: 'Invalid token: missing sub' });
+  if (!user_id) return res.status(401).json({ error: 'Invalid token: missing user_id' });
 
   if (!validateRut(rut)) {
     return res.status(400).json({ error: 'Invalid RUT' });
@@ -124,8 +127,7 @@ app.post('/products', ensureUserExists, async (req, res) => {
         brand_id,
         category_id,
         subcategory_id,
-        item_id,
-        size_id,
+        item_id,        size_id,
         gender,
         condition,
         price_min,
@@ -148,8 +150,8 @@ app.post('/products', ensureUserExists, async (req, res) => {
   res.status(201).json(data);
 });
 
-// 🇨🇱 Validate Chilean RUT
-function validateRut(rut) {
+// 🇨🇱 Chilean RUT validation
+function validateRut(ru {
   if (!rut || typeof rut !== 'string') return false;
   rut = rut.replace(/\./g, '').replace('-', '');
   const body = rut.slice(0, -1);
@@ -168,7 +170,7 @@ function validateRut(rut) {
   return dv === expected;
 }
 
-// 🚀 Start server
+// 🚀 Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
