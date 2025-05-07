@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // Supabase connection
 const supabase = createClient(
-  process.enUPABASE_URL,
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
