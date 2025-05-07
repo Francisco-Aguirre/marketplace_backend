@@ -99,6 +99,33 @@ app.post('/users', async (req, res) => {
   res.status(201).json(data);
 });
 
+
+app.get('/users/me', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+
+  const token = authHeader.split(' ')[1];
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const user_id = decoded.sub;
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('user_id', user_id)
+    .single();
+
+  if (error) return res.status(404).json({ error: 'User not found' });
+
+  res.status(200).json(data);
+});
+
+
 // 👕 Post a product
 app.post('/products', ensureUserExists, async (req, res) => {
   const {
