@@ -72,7 +72,7 @@ app.post('/users', async (req, res) => {
   if (!user_id) return res.status(401).json({ error: 'Invalid token: missing sub' });
 
   if (!validateRut(rut)) {
-    return res.status(400).json({ error: Invalid RUT' });
+    return res.status(400).json({ error: 'Invalid RUT' });
   }
 
   const { data, error } = await supabase
@@ -137,7 +137,7 @@ app.post('/products', ensureUserExists, async (req, res) => {
 
   if (error) {
     console.error('Product insert error:', error);
-    retur res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: error.message });
   }
 
   await supabase
