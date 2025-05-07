@@ -20,7 +20,7 @@ app.get('/health', (req, res) => res.send('API is running'));
 app.get('/', (req, res) => res.send('Marketplace API is live!'));
 
 // 🔐 Middleware: Ensure user exists
-const ensureUserExists = async (req, res, nex) => {
+const ensureUserExists = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Missing token' });
 
@@ -152,7 +152,7 @@ app.post('/products', ensureUserExists, async (req, res) => {
 function validateRut(rut) {
   if (!rut || typeof rut !== 'string') return false;
   rut = rut.replace(/\./g, '').replace('-', '');
-  const body = rut.slice(0, );
+  const body = rut.slice(0, -1);
   let dv = rut.slice(-1).toUpperCase();
 
   let sum = 0;
@@ -169,6 +169,6 @@ function validateRut(rut) {
 }
 
 // 🚀 Start server
-app.liste(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
