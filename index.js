@@ -3,33 +3,24 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 
-
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-app.get('/health', (req, res) => {
-  res.send('API is running');
-});
-
-
 
 const PORT = process.env.PORT || 3000;
 
 // Supabase connection
 const supabase = createClient(
-  process.env.SUPABASE_URL,
+  process.enUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Health check route
-app.get('/', (req, res) => {
-  res.send('Marketplace API is live!');
-});
+// Health check routes
+app.get('/health', (req, res) => res.send('API is running'));
+app.get('/', (req, res) => res.send('Marketplace API is live!'));
 
-
-// Middleware to ensure user exists in Supabase `users` table
-const ensureUserExists = async (req, res, next) => {
+// 🔐 Middleware: Ensure user exists
+const ensureUserExists = async (req, res, nex) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Missing token' });
 
@@ -43,7 +34,6 @@ const ensureUserExists = async (req, res, next) => {
   const user_id = decoded.sub;
   if (!user_id) return res.status(401).json({ error: 'Invalid token: missing sub' });
 
-  // Attach to request for reuse in route
   req.user = { id: user_id };
 
   const { data: existingUser, error } = await supabase
@@ -57,28 +47,13 @@ const ensureUserExists = async (req, res, next) => {
   }
 
   if (!existingUser) {
-    const { error: insertError } = await supabase.from('users').insert([
-      {
-        user_id,
-        user_name: 'auto_created',
-        rut: '11111111-1',
-        name: 'Default',
-        last_name: '',
-        phone: '',
-        is_seller: false,
-      }
-    ]);
-    if (insertError) {
-      return res.status(500).json({ error: 'Failed to auto-insert user' });
-    }
+    return res.status(403).json({ error: 'User not registered. Please register first via /users' });
   }
 
   next();
 };
 
-
-
-//  POST /users route
+// 🧾 Register new user
 app.post('/users', async (req, res) => {
   const { username, rut, last_name, name, phone } = req.body;
 
@@ -86,75 +61,42 @@ app.post('/users', async (req, res) => {
   if (!authHeader) return res.status(401).json({ error: 'Missing Authorization header' });
 
   const rawToken = authHeader.split(' ')[1];
-  console.log('Incoming JWT token:', rawToken);
-
   let decoded;
   try {
     decoded = jwt.verify(rawToken, process.env.JWT_SECRET);
-    console.log('Decoded JWT:', decoded);
   } catch (err) {
-    console.error('JWT verification failed:', err);
     return res.status(401).json({ error: 'Invalid token' });
   }
 
   const user_id = decoded.sub;
-  if (!user_id) {
-    console.error('Token decoded, but sub is missing');
-    return res.status(401).json({ error: 'Invalid token: missing sub' });
-  }
+  if (!user_id) return res.status(401).json({ error: 'Invalid token: missing sub' });
 
   if (!validateRut(rut)) {
-    return res.status(400).json({ error: 'Invalid RUT' });
+    return res.status(400).json({ error: Invalid RUT' });
   }
 
-  const { data, error } = await supabase.from('users').insert([
-    {
-      user_id,
-      user_name: username, 
-      rut,
-	name,
-	last_name,
-	phone
-      
-    }
-  ])
-.select();
+  const { data, error } = await supabase
+    .from('users')
+    .insert([
+      {
+        user_id,
+        user_name: username,
+        rut,
+        name,
+        last_name,
+        phone
+      }
+    ])
+    .select();
 
   if (error) {
-    console.error('Supabase insert error:', error);
     return res.status(400).json({ error: error.message });
   }
 
   res.status(201).json(data);
 });
 
-// ✅ Chilean RUT validation function
-function validateRut(rut) {
-  if (!rut || typeof rut !== 'string') return false;
-  rut = rut.replace(/\./g, '').replace('-', '');
-  const body = rut.slice(0, -1);
-  let dv = rut.slice(-1).toUpperCase();
-
-  let sum = 0;
-  let multiplier = 2;
-
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += parseInt(body[i]) * multiplier;
-    multiplier = multiplier === 7 ? 2 : multiplier + 1;
-  }
-
-  const expectedDV = 11 - (sum % 11);
-  const expected = expectedDV === 11 ? '0' : expectedDV === 10 ? 'K' : expectedDV.toString();
-
-  return dv === expected;
-}
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-//  POST /products route
+// 👕 Post a product
 app.post('/products', ensureUserExists, async (req, res) => {
   const {
     title,
@@ -195,7 +137,7 @@ app.post('/products', ensureUserExists, async (req, res) => {
 
   if (error) {
     console.error('Product insert error:', error);
-    return res.status(400).json({ error: error.message });
+    retur res.status(400).json({ error: error.message });
   }
 
   await supabase
@@ -204,4 +146,29 @@ app.post('/products', ensureUserExists, async (req, res) => {
     .eq('user_id', seller_id);
 
   res.status(201).json(data);
+});
+
+// 🇨🇱 Validate Chilean RUT
+function validateRut(rut) {
+  if (!rut || typeof rut !== 'string') return false;
+  rut = rut.replace(/\./g, '').replace('-', '');
+  const body = rut.slice(0, );
+  let dv = rut.slice(-1).toUpperCase();
+
+  let sum = 0;
+  let multiplier = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const expectedDV = 11 - (sum % 11);
+  const expected = expectedDV === 11 ? '0' : expectedDV === 10 ? 'K' : expectedDV.toString();
+
+  return dv === expected;
+}
+
+// 🚀 Start server
+app.liste(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
